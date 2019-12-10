@@ -1,0 +1,17 @@
+Package: multinomialdistance
+Type: Package
+Title: Multiomial distance metric for non-normal data
+Version: 0.1.0
+Authors@R: c(
+    person("Nathan", "Dyjack", role = c("aut", "cre"),
+    email = "ndyjack1@jhmi.edu"), 
+    person(c("Stephanie", "C."), "Hicks", role = c("aut"), 
+    email = "shicks19@jhu.edu", 
+    comment = c(ORCID = "0000-0002-7858-0231")))
+Description: Add here. 
+Depends: R (>= 3.6.0)
+VignetteBuilder: knitr
+RoxygenNote: 6.1.1
+Encoding: UTF-8
+License: CC BY 4.0
+LazyData: true
