@@ -14,13 +14,14 @@
 #'
 #' @examples
 sequence_cell <- function(ncells, reads_per_cell, prob_dist,seed){
-  #	draw samples from multinomial distribution 
-#  set.seed(seed)
+  #	draw samples from multinomial distribution
+  
+  set.seed(seed)
   obs_counts_cell <- rmultinom(n=ncells,prob=prob_dist,size=reads_per_cell)
 # turn off library size scaling for now
 #  estimate_prob_cell <- obs_counts_cell / reads_per_cell	
-  return(obs_counts_cell)
-#  return(t(estimate_prob_cell))
+  
+  return(t(estimate_prob_cell))
 }
 
 #' generate_probability_mass
@@ -84,21 +85,18 @@ generate_prob_mass <- function(n_subtypes, n_genes, gene_pcts, gene_lfcs){
   if(sum(gene_pcts)!=1){stop("gene %s must sum to 1")}
 
   l <- length(gene_pcts) #last index for noise genes
-#  marker_pct <- 1 -  gene_pcts[l] #pct left for marker genes to occupy
-#  marker_sum <- n_genes * marker_pct# number of marker genes
-  gene_sums <- ceiling(n_genes * gene_pcts)
-#  noise_prob <-  gene_pcts[l] / gene_sums[l]
-#  base_prob <- marker_pct /  (gene_lfcs[-l] + (l - 2))
-#  base_prob <- base_prob / gene_sums[-l]
-#  base_probs <- (1 / (gene_lfcs[-l] + 1)) / n_genes
-#  marker_prob <- base_prob * gene_lfcs[i]
+  marker_pct <- 1 -  gene_pcts[l] #pct left for marker genes to occupy
+  marker_sum <- n_genes * marker_pct# number of marker genes
+  gene_sums <- n_genes * gene_pcts
+  noise_prob <-  gene_pcts[l] / gene_sums[l]
+  base_prob <- marker_pct /  (gene_lfcs[-l] + (l - 2))
+  base_prob <- base_prob / gene_sums[-l]
   idxs <- c(0,cumsum(gene_sums[-l])) 
 
   prob_densities <- t(sapply(1:(l-1), function(i) {
-    base_prob <- 1 / ( gene_lfcs[i] * gene_sums[i] + sum(gene_sums[-i]) )
     tmp <- rep_len(base_prob,n_genes)
-    tmp[(idxs[i]+1):(idxs[i+1])] <- rep_len(base_prob * gene_lfcs[i], gene_sums[i])
-#    tmp[(tail(idxs,1)+1):(n_genes)] <- noise_prob
+    tmp[(idxs[i]+1):(idxs[i+1])] <- c(base_prob * gene_lfcs[i] )
+    tmp[(tail(idxs,1)+1):(n_genes)] <- noise_prob
     return(tmp)
   }))  
 
@@ -116,7 +114,7 @@ generate_prob_mass <- function(n_subtypes, n_genes, gene_pcts, gene_lfcs){
 #' @export
 #'
 #' @examples
-log_likelihood_ratio_multinomial <- function(counts1,counts2){
+log_likelihood_ratio_multinomial <- function(prob1,prob2,totcounts){
   #	Given count vectors for two cells, compute log-likelihood ratio comparing
   #    alternative vs null hypothesis, as described above.
   
@@ -126,12 +124,11 @@ log_likelihood_ratio_multinomial <- function(counts1,counts2){
   #    -- totcounts: total counts for each cell (assumed to be equal for both cells)
   
   #    Outputs:
-  #    -- log-likelihood ratio 
-  #  counts1 <- round(prob1*totcounts)
-  #  counts2 <- round(prob2*totcounts) #rounding required for stability
-  prob1 <- counts1/sum(counts1)
-  prob2 <- counts2/sum(counts2)
-
+  #    -- log-likelihood ratio
+  
+  counts1 <- round(prob1*totcounts)
+  counts2 <- round(prob2*totcounts) #rounding required for stability
+  
   tmp_lhd_ha <- sum(log(prob1^counts1)) + sum(log(prob2^counts2))	
   prob_avg <- (prob1+prob2)/2
   tmp_lhd_h0 <- sum(log(prob_avg^counts1)) + sum(log(prob_avg^counts2))
@@ -149,7 +146,7 @@ log_likelihood_ratio_multinomial <- function(counts1,counts2){
 #' @export
 #'
 #' @examples
-compute_distance <- function(dat,type){
+compute_distance <- function(dat,type,totcounts){
   #	Compute distance matrix from a probability data matrix
   
   #    Inputs:
@@ -160,14 +157,14 @@ compute_distance <- function(dat,type){
   #    Outputs:
   #    -- nxn distance matrix
   
-  n <- ncol(dat)
+  n <- nrow(dat)
   dist_mat <- matrix(0,nrow=n,ncol=n)
   dist_vec <- unlist(lapply(1:(n-1), function(i) {
     sapply((i+1):(n), function(j) {
       if(type=="lrm"){
-        d <- log_likelihood_ratio_multinomial(dat[,i],dat[,j])
+        d <- log_likelihood_ratio_multinomial(dat[i,],dat[j,],totcounts)
       }else if(type=="euc"){
-        d <- sqrt(sum((dat[,i] - dat[,j])^2)) 
+        d <- sqrt(sum((dat[i,] - dat[j,])^2)) 
       }
       return(d)
     })
